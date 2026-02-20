@@ -15,11 +15,10 @@ export default function Footer() {
   }, []);
 
   const fetchCategories = async () => {
-    debugger
+    
     const { data } = await supabase
       .from('categories')
-      .select('id, name, slug')
-      .order('display_order');
+      .select('id, name, slug');
 
     if (data) {
       setCategories(data);

@@ -7,6 +7,7 @@ interface Asset {
   thumbnail_url: string;
   downloads_count: number;
   views_count: number;
+  description?: string; // Added this in case your prompt text differs from the title
 }
 
 interface CategorySectionProps {
@@ -17,6 +18,52 @@ interface CategorySectionProps {
   onAssetClick: (assetId: string) => void;
 }
 
+// Sub-component to handle individual prompt items and their copy state
+function PromptListItem({
+  asset,
+  onClick,
+}: {
+  asset: Asset;
+  onClick: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevents triggering the onClick for the whole row
+    const textToCopy = asset.description || asset.title;
+    navigator.clipboard.writeText(textToCopy);
+    
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+    >
+      <div className="flex-1 mr-4">
+        <h3 className="font-medium text-gray-900">{asset.title}</h3>
+        {asset.description && (
+          <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+            {asset.description}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={handleCopy}
+        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+          copied
+            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+        }`}
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
 export default function CategorySection({
   title,
   description,
@@ -24,7 +71,11 @@ export default function CategorySection({
   assets,
   onAssetClick,
 }: CategorySectionProps) {
+  debugger
   const [activeTab, setActiveTab] = useState<'latest' | 'trending'>('latest');
+
+  // Check if the current section is Aiprompt
+  const isAiprompt = title.toLowerCase().replace(/\s+/g, '') === 'aiprompts';
 
   return (
     <section className="py-12">
@@ -57,19 +108,32 @@ export default function CategorySection({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-          {assets.slice(0, 10).map((asset) => (
-            <AssetCard
-              key={asset.id}
-              id={asset.id}
-              title={asset.title}
-              thumbnailUrl={asset.thumbnail_url}
-              downloadsCount={asset.downloads_count || 0}
-              viewsCount={asset.views_count || 0}
-              onClick={() => onAssetClick(asset.id)}
-            />
-          ))}
-        </div>
+        {/* Conditionally Render List OR Image Grid */}
+        {isAiprompt ? (
+          <div className="flex flex-col gap-3 mb-6">
+            {assets.slice(0, 10).map((asset) => (
+              <PromptListItem
+                key={asset.id}
+                asset={asset}
+                onClick={() => onAssetClick(asset.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+            {assets.slice(0, 10).map((asset) => (
+              <AssetCard
+                key={asset.id}
+                id={asset.id}
+                title={asset.title}
+                thumbnailUrl={asset.thumbnail_url}
+                downloadsCount={asset.downloads_count || 0}
+                viewsCount={asset.views_count || 0}
+                onClick={() => onAssetClick(asset.id)}
+              />
+            ))}
+          </div>
+        )}
 
         <p className="text-gray-600 text-sm mb-4">{description}</p>
 

@@ -11,6 +11,8 @@ interface Asset {
   thumbnail_url: string;
   downloads_count: number;
   views_count: number;
+  prompt_text?: string; // Added for the copy functionality
+  description?: string;
 }
 
 interface CategoryPageProps {
@@ -18,6 +20,52 @@ interface CategoryPageProps {
 }
 
 const ITEMS_PER_PAGE = 20;
+
+// Sub-component to handle individual prompt items and their copy state
+function PromptListItem({
+  asset,
+  onClick,
+}: {
+  asset: Asset;
+  onClick: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevents triggering the onClick for the whole row
+    const textToCopy = asset.description || asset.title;
+    navigator.clipboard.writeText(textToCopy);
+
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+    >
+      <div className="flex-1 mr-4">
+        <h3 className="font-medium text-gray-900">{asset.title}</h3>
+        {asset.description && (
+          <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+            {asset.description}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={handleCopy}
+        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+          copied
+            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+        }`}
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  );
+}
 
 export default function CategoryPage({ slug }: CategoryPageProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -34,7 +82,7 @@ export default function CategoryPage({ slug }: CategoryPageProps) {
 
   const fetchCategoryAndAssets = async () => {
     setLoading(true);
-
+debugger
     const { data: categoryData } = await supabase
       .from('categories')
       .select('id, name, description')
@@ -82,6 +130,9 @@ export default function CategoryPage({ slug }: CategoryPageProps) {
   };
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  // Check if the current section is Aiprompt
+  const isAiprompt = categoryName.toLowerCase().replace(/\s+/g, '') === 'aiprompts';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -131,29 +182,54 @@ export default function CategoryPage({ slug }: CategoryPageProps) {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-square bg-gray-200 rounded-lg animate-pulse"
-                />
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {assets.map((asset) => (
-                  <AssetCard
-                    key={asset.id}
-                    id={asset.id}
-                    title={asset.title}
-                    thumbnailUrl={asset.thumbnail_url}
-                    downloadsCount={asset.downloads_count || 0}
-                    viewsCount={asset.views_count || 0}
-                    onClick={() => handleAssetClick(asset.id)}
+            // Custom loading skeleton depending on type
+            isAiprompt ? (
+              <div className="flex flex-col gap-3">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-gray-200 rounded-lg animate-pulse"
                   />
                 ))}
               </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {Array.from({ length: 20 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square bg-gray-200 rounded-lg animate-pulse"
+                  />
+                ))}
+              </div>
+            )
+          ) : (
+            <>
+              {/* Conditionally Render List OR Image Grid */}
+              {isAiprompt ? (
+                <div className="flex flex-col gap-3 mb-8">
+                  {assets.map((asset) => (
+                    <PromptListItem
+                      key={asset.id}
+                      asset={asset}
+                      onClick={() => handleAssetClick(asset.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
+                  {assets.map((asset) => (
+                    <AssetCard
+                      key={asset.id}
+                      id={asset.id}
+                      title={asset.title}
+                      thumbnailUrl={asset.thumbnail_url}
+                      downloadsCount={asset.downloads_count || 0}
+                      viewsCount={asset.views_count || 0}
+                      onClick={() => handleAssetClick(asset.id)}
+                    />
+                  ))}
+                </div>
+              )}
 
               {totalPages > 1 && (
                 <Pagination
